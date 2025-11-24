@@ -2,3 +2,7 @@ fastapi
 uvicorn[standard]
 asyncpg
 python-dotenv
+pydantic[email]
+google-cloud-secret-manager
+google-cloud-logging
+firebase-admin
