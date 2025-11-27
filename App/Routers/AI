@@ -1,0 +1,45 @@
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+from ..agents.gemini_agent import GeminiAgent
+from ..Config import settings
+
+router = APIRouter(prefix="/ai", tags=["ai"])
+
+class MessageRequest(BaseModel):
+    contact_name: str
+    company: str
+    context: str = ""
+
+class NetworkAnalysisRequest(BaseModel):
+    total_contacts: int
+    active_contacts: int
+
+# Initialize agent
+agent = GeminiAgent()
+
+@router.post("/generate-message")
+async def generate_message(request: MessageRequest):
+    """Generate AI networking message"""
+    try:
+        settings.validate()
+        message = agent.generate_message(
+            request.contact_name,
+            request.company,
+            request.context
+        )
+        return {"status": "success", "message": message}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/analyze-network")
+async def analyze_network(request: NetworkAnalysisRequest):
+    """Get AI network analysis"""
+    try:
+        settings.validate()
+        analysis = agent.analyze_network(
+            request.total_contacts,
+            request.active_contacts
+        )
+        return {"status": "success", "analysis": analysis}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
