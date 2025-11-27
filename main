@@ -1,7 +1,54 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+import uvicorn
+import os
 
-app = FastAPI(title="PropelMe Backend - Minimal")
+from App.Config import settings
+
+# Import routers
+try:
+    from App.Routers import AI
+    has_ai_router = True
+except ImportError:
+    has_ai_router = False
+    print("Warning: AI router not available")
+
+app = FastAPI(
+    title="PropelMe",
+    version="2.0",
+    description="AI-powered networking agent"
+)
+
+# CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.get("/")
+def root():
+    return {
+        "service": "PropelMe",
+        "status": "running",
+        "ai": "Vertex AI Gemini",
+        "ai_router_loaded": has_ai_router
+    }
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    try:
+        settings.validate()
+        return {"status": "healthy", "project_id": settings.google_project_id}
+    except Exception as e:
+        return {"status": "unhealthy", "error": str(e)}
+
+# Include AI router if available
+if has_ai_router:
+    app.include_router(AI.router)
+
+if __name__ == "__main__":
+    port = int(os.getenv("PORT", "8080"))
+    uvicorn.run("main:app", host="0.0.0.0", port=port)
