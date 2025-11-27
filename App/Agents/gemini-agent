@@ -1,0 +1,46 @@
+import vertexai
+from vertexai.generative_models import GenerativeModel
+from ..Config import settings
+
+class GeminiAgent:
+    """Simple Gemini agent for networking advice"""
+    
+    def __init__(self):
+        vertexai.init(project=settings.google_project_id, location=settings.gcp_region)
+        self.model = GenerativeModel(settings.gemini_model)
+    
+    def generate_message(self, contact_name: str, company: str, context: str = "") -> str:
+        """Generate a networking message"""
+        
+        prompt = f"""
+        Write a friendly LinkedIn message to {contact_name} at {company}.
+        Context: {context}
+        
+        Make it:
+        - Under 150 words
+        - Warm and personal
+        - Include a clear call-to-action (coffee chat or quick call)
+        
+        Just return the message text, nothing else.
+        """
+        
+        response = self.model.generate_content(prompt)
+        return response.text
+    
+    def analyze_network(self, total_contacts: int, active_count: int) -> str:
+        """Analyze network health"""
+        
+        prompt = f"""
+        Analyze this professional network:
+        - Total contacts: {total_contacts}
+        - Active (contacted in last 90 days): {active_count}
+        
+        Provide:
+        1. Network health score (0-100)
+        2. Top 3 recommendations
+        
+        Keep it brief and actionable.
+        """
+        
+        response = self.model.generate_content(prompt)
+        return response.text
