@@ -1,27 +1,16 @@
 cat > App/Routers/Contacts.py << 'EOF'
 from fastapi import APIRouter, HTTPException
 from typing import List, Optional
-from pydantic import BaseModel
-from ..Schemas import Contact, Interaction
+from ..Schemas import Contact, Interaction, PrioritizeRequest, ScheduleRequest
 from ..services.prioritization import ContactPrioritization
 
 router = APIRouter(prefix="/contacts", tags=["Contact Management"])
 
 prioritizer = ContactPrioritization()
 
-class PrioritizeRequest(BaseModel):
-    contacts: List[Contact]
-    interactions: Optional[List[Interaction]] = None
-    limit: Optional[int] = None
-
-class ScheduleRequest(BaseModel):
-    contacts: List[Contact]
-    interactions: Optional[List[Interaction]] = None
-    contacts_per_week: int = 5
-
 @router.post("/prioritize")
 async def prioritize_contacts(request: PrioritizeRequest):
-    """Prioritize contacts for outreach"""
+    """Prioritize contacts for outreach using smart scoring"""
     try:
         prioritized = prioritizer.prioritize_contacts(
             request.contacts,
@@ -56,6 +45,7 @@ async def generate_schedule(request: ScheduleRequest):
         return {
             "status": "success",
             "weeks": len(schedule),
+            "total_contacts": len(request.contacts),
             "schedule": schedule_dict
         }
     except Exception as e:
@@ -63,14 +53,23 @@ async def generate_schedule(request: ScheduleRequest):
 
 @router.post("/calculate-warmth")
 async def calculate_warmth(contact: Contact, interactions: List[Interaction]):
-    """Calculate relationship warmth score"""
+    """Calculate relationship warmth score for a contact"""
     try:
         warmth = prioritizer.calculate_warmth_score(contact, interactions)
+        
+        # Update warmth bucket
+        if warmth >= 70:
+            bucket = "hot"
+        elif warmth >= 40:
+            bucket = "warm"
+        else:
+            bucket = "cold"
         
         return {
             "status": "success",
             "contact": contact.name,
-            "warmth_score": warmth
+            "warmth_score": warmth,
+            "warmth_bucket": bucket
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
