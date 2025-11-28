@@ -1,27 +1,36 @@
+cat > App/Config.py << 'EOF'
 import os
 
 class Settings:
-    # App basics
+    # App
     app_name: str = "PropelMe"
     environment: str = os.getenv("ENVIRONMENT", "production")
     
-    # Google Cloud - reads from environment variable
+    # Google Cloud & Vertex AI
     google_project_id: str = os.getenv("GOOGLE_PROJECT_ID", "")
     gcp_region: str = "us-central1"
-    
-    # Gemini settings
     gemini_model: str = "gemini-2.0-flash-exp"
     
-    # Firebase - reads from environment variables
-    firebase_project_id: str | None = os.getenv("FIREBASE_PROJECT_ID")
-    firebase_client_email: str | None = os.getenv("FIREBASE_CLIENT_EMAIL")
-    firebase_private_key: str | None = os.getenv("FIREBASE_PRIVATE_KEY")
+    # LinkedIn OAuth
+    linkedin_client_id: str | None = os.getenv("LINKEDIN_CLIENT_ID")
+    linkedin_client_secret: str | None = os.getenv("LINKEDIN_CLIENT_SECRET")
+    linkedin_redirect_uri: str = os.getenv(
+        "LINKEDIN_REDIRECT_URI",
+        "https://propelme-backend-409735787031.us-central1.run.app/auth/linkedin/callback"
+    )
     
-    # Database
-    db_connection_url: str | None = os.getenv("DB_CONNECTION_URL")
+    # Eventbrite
+    eventbrite_api_key: str | None = os.getenv("EVENTBRITE_API_KEY")
     
     def validate(self):
         if not self.google_project_id:
-            raise ValueError("GOOGLE_PROJECT_ID is required!")
+            raise ValueError("GOOGLE_PROJECT_ID required")
+    
+    def has_linkedin(self) -> bool:
+        return bool(self.linkedin_client_id and self.linkedin_client_secret)
+    
+    def has_eventbrite(self) -> bool:
+        return bool(self.eventbrite_api_key)
 
 settings = Settings()
+EOF
