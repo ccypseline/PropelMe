@@ -1,0 +1,65 @@
+cat > App/Schemas.py << 'EOF'
+from pydantic import BaseModel, EmailStr, Field
+from typing import Optional, List
+from datetime import datetime
+from enum import Enum
+
+class RelationshipType(str, Enum):
+    CLOSE_FRIEND = "close_friend"
+    FRIEND = "friend"
+    FORMER_COLLEAGUE = "former_colleague"
+    CURRENT_COLLEAGUE = "current_colleague"
+    ACQUAINTANCE = "acquaintance"
+    MET_ONCE = "met_once"
+    NEVER_MET = "never_met"
+
+class ContactSource(str, Enum):
+    LINKEDIN = "linkedin"
+    MANUAL = "manual"
+    CSV_IMPORT = "csv_import"
+    EVENTBRITE = "eventbrite"
+
+class Contact(BaseModel):
+    id: Optional[str] = None
+    name: str
+    email: Optional[EmailStr] = None
+    linkedin_url: Optional[str] = None
+    company: Optional[str] = None
+    title: Optional[str] = None
+    location: Optional[str] = None
+    
+    # Relationship data
+    relationship: RelationshipType = RelationshipType.ACQUAINTANCE
+    last_interaction_date: Optional[datetime] = None
+    interaction_count: int = 0
+    
+    # Scoring
+    warmth_score: float = 0.0  # 0-100
+    priority_score: float = 0.0  # 0-100
+    
+    # Metadata
+    source: ContactSource = ContactSource.MANUAL
+    tags: List[str] = []
+    notes: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
+
+class Interaction(BaseModel):
+    id: Optional[str] = None
+    contact_id: str
+    date: datetime = Field(default_factory=datetime.now)
+    type: str  # email, linkedin_message, phone_call, coffee, event
+    notes: str
+    sentiment: str = "neutral"  # positive, neutral, negative
+    follow_up_needed: bool = False
+    follow_up_date: Optional[datetime] = None
+
+class UserProfile(BaseModel):
+    id: Optional[str] = None
+    name: str
+    email: EmailStr
+    linkedin_profile: Optional[str] = None
+    career_goals: Optional[str] = None
+    target_industries: Optional[List[str]] = None
+    created_at: datetime = Field(default_factory=datetime.now)
+EOF
