@@ -1,0 +1,100 @@
+cat > App/oauth/linkedin.py << 'EOF'
+from typing import Dict, Optional
+import httpx
+from fastapi import HTTPException
+from ..Config import settings
+
+class LinkedInOAuth:
+    """LinkedIn OAuth 2.0 integration"""
+    
+    AUTHORIZE_URL = "https://www.linkedin.com/oauth/v2/authorization"
+    TOKEN_URL = "https://www.linkedin.com/oauth/v2/accessToken"
+    PROFILE_URL = "https://api.linkedin.com/v2/userinfo"
+    
+    def __init__(self):
+        self.client_id = settings.linkedin_client_id
+        self.client_secret = settings.linkedin_client_secret
+        self.redirect_uri = settings.linkedin_redirect_uri
+        self.scopes = "openid profile email w_member_social"
+    
+    def get_authorization_url(self, state: str) -> str:
+        """Generate LinkedIn OAuth authorization URL"""
+        if not self.client_id:
+            raise HTTPException(
+                status_code=501,
+                detail="LinkedIn OAuth not configured. Set LINKEDIN_CLIENT_ID."
+            )
+        
+        params = {
+            "response_type": "code",
+            "client_id": self.client_id,
+            "redirect_uri": self.redirect_uri,
+            "scope": self.scopes,
+            "state": state
+        }
+        
+        query = "&".join([f"{k}={v}" for k, v in params.items()])
+        return f"{self.AUTHORIZE_URL}?{query}"
+    
+    async def exchange_code_for_token(self, code: str) -> Dict:
+        """Exchange authorization code for access token"""
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                self.TOKEN_URL,
+                data={
+                    "grant_type": "authorization_code",
+                    "code": code,
+                    "redirect_uri": self.redirect_uri,
+                    "client_id": self.client_id,
+                    "client_secret": self.client_secret
+                },
+                headers={"Content-Type": "application/x-www-form-urlencoded"}
+            )
+            
+            if response.status_code != 200:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Token exchange failed: {response.text}"
+                )
+            
+            return response.json()
+    
+    async def get_user_profile(self, access_token: str) -> Dict:
+        """Fetch LinkedIn user profile"""
+        
+        headers = {"Authorization": f"Bearer {access_token}"}
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.get(self.PROFILE_URL, headers=headers)
+            
+            if response.status_code != 200:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Failed to fetch profile"
+                )
+            
+            return response.json()
+    
+    async def get_connections(self, access_token: str) -> Dict:
+        """Fetch user's LinkedIn connections
+        
+        Note: Requires partner-level API access
+        """
+        headers = {"Authorization": f"Bearer {access_token}"}
+        
+        async with httpx.AsyncClient() as client:
+            # This endpoint requires LinkedIn Partner API access
+            response = await client.get(
+                "https://api.linkedin.com/v2/connections",
+                headers=headers
+            )
+            
+            if response.status_code == 403:
+                return {
+                    "error": "Partner API access required for connections",
+                    "suggestion": "Use CSV export instead"
+                }
+            
+            return response.json()
+EOF
