@@ -1,25 +1,14 @@
+cat > main.py << 'EOF'
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import uvicorn
 import os
 
-from App.Config import settings
-
-# Import routers
-try:
-    from App.Routers import AI
-    has_ai_router = True
-except ImportError:
-    has_ai_router = False
-    print("Warning: AI router not available")
-
 app = FastAPI(
-    title="PropelMe",
+    title="PropelMe - AI Networking Agent",
     version="2.0",
-    description="AI-powered networking agent"
+    description="AI-powered networking assistant with LinkedIn integration"
 )
 
-# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -33,22 +22,34 @@ def root():
     return {
         "service": "PropelMe",
         "status": "running",
-        "ai": "Vertex AI Gemini",
-        "ai_router_loaded": has_ai_router
+        "version": "2.0",
+        "ai": "Google Gemini (Vertex AI)",
+        "features": ["AI messaging", "LinkedIn OAuth", "Network analysis"],
+        "endpoints": ["/health", "/docs", "/ai/*", "/auth/*"]
     }
 
 @app.get("/health")
 def health():
-    try:
-        settings.validate()
-        return {"status": "healthy", "project_id": settings.google_project_id}
-    except Exception as e:
-        return {"status": "unhealthy", "error": str(e)}
+    from App.Config import settings
+    return {
+        "status": "healthy",
+        "project_id": os.getenv("GOOGLE_PROJECT_ID", "not-set"),
+        "linkedin_configured": settings.has_linkedin(),
+        "eventbrite_configured": settings.has_eventbrite()
+    }
 
-# Include AI router if available
-if has_ai_router:
-    app.include_router(AI.router)
+# Load routers
+try:
+    from App.Routers.AI import router as ai_router
+    app.include_router(ai_router)
+    print("✓ AI router loaded")
+except Exception as e:
+    print(f"✗ AI router failed: {e}")
 
-if __name__ == "__main__":
-    port = int(os.getenv("PORT", "8080"))
-    uvicorn.run("main:app", host="0.0.0.0", port=port)
+try:
+    from App.Routers.Auth import router as auth_router
+    app.include_router(auth_router)
+    print("✓ Auth router loaded")
+except Exception as e:
+    print(f"✗ Auth router failed: {e}")
+EOF
