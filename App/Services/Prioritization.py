@@ -1,6 +1,3 @@
-mkdir -p App/services
-touch App/services/__init__.py
-
 cat > App/services/prioritization.py << 'EOF'
 from typing import List, Dict
 from datetime import datetime, timedelta
@@ -33,19 +30,24 @@ class ContactPrioritization:
         score += self._calculate_recency_score(contact)
         
         # 2. Relationship Strength (25 points max)
-        score += self.RELATIONSHIP_WEIGHTS.get(contact.relationship, 10)
+        if contact.relationship:
+            score += self.RELATIONSHIP_WEIGHTS.get(contact.relationship, 10)
+        else:
+            score += 10  # Default for unknown relationship
         
         # 3. Interaction Frequency (20 points max)
         if interactions:
             score += self._calculate_frequency_score(contact, interactions)
         
         # 4. Warmth/Quality Score (15 points max)
-        score += (contact.warmth_score / 100) * 15
+        # Use existing warmth_score if available
+        warmth = contact.warmth_score if contact.warmth_score else 50.0
+        score += (warmth / 100) * 15
         
         return min(100.0, score)
     
     def _calculate_recency_score(self, contact: Contact) -> float:
-        """Score based on time since last interaction (higher = more stale = higher priority)"""
+        """Score based on time since last interaction"""
         
         if not contact.last_interaction_date:
             return 40.0  # Never contacted = highest priority
@@ -53,7 +55,7 @@ class ContactPrioritization:
         days_since = (datetime.now() - contact.last_interaction_date).days
         
         if days_since < 30:
-            return 5.0  # Recent, low priority
+            return 5.0
         elif days_since < 60:
             return 15.0
         elif days_since < 90:
@@ -61,26 +63,25 @@ class ContactPrioritization:
         elif days_since < 180:
             return 35.0
         else:
-            return 40.0  # Very stale, high priority
+            return 40.0
     
     def _calculate_frequency_score(
         self, 
         contact: Contact, 
         interactions: List[Interaction]
     ) -> float:
-        """Score based on interaction frequency in last year"""
+        """Score based on interaction frequency"""
         
-        # Count interactions in last 365 days
         one_year_ago = datetime.now() - timedelta(days=365)
         recent_interactions = [
             i for i in interactions 
-            if i.contact_id == contact.id and i.date > one_year_ago
+            if i.contact_id == (contact.id or 0) and i.date > one_year_ago
         ]
         
         count = len(recent_interactions)
         
         if count == 0:
-            return 20.0  # No recent interactions = high priority
+            return 20.0
         elif count < 3:
             return 15.0
         elif count < 6:
@@ -88,7 +89,7 @@ class ContactPrioritization:
         elif count < 12:
             return 5.0
         else:
-            return 2.0  # Very frequent contact = low priority
+            return 2.0
     
     def prioritize_contacts(
         self, 
@@ -125,10 +126,8 @@ class ContactPrioritization:
     ) -> Dict[str, List[Contact]]:
         """Generate weekly outreach schedule"""
         
-        # Prioritize contacts
         prioritized = self.prioritize_contacts(contacts, interactions)
         
-        # Group into weeks
         schedule = {}
         current_date = datetime.now()
         
@@ -152,19 +151,17 @@ class ContactPrioritization:
         """Calculate relationship warmth based on interaction quality"""
         
         if not interactions:
-            return 50.0  # Neutral baseline
+            return contact.warmth_score if contact.warmth_score else 50.0
         
-        # Get recent interactions
         six_months_ago = datetime.now() - timedelta(days=180)
         recent = [
             i for i in interactions 
-            if i.contact_id == contact.id and i.date > six_months_ago
+            if i.contact_id == (contact.id or 0) and i.date > six_months_ago
         ]
         
         if not recent:
-            return 40.0  # Slightly cold
+            return 40.0
         
-        # Quality weights
         sentiment_scores = {
             "positive": 10,
             "neutral": 5,
@@ -179,12 +176,11 @@ class ContactPrioritization:
             "email": 5
         }
         
-        total_score = 50.0  # Start at neutral
+        total_score = 50.0
         
-        for interaction in recent[:10]:  # Last 10 interactions
+        for interaction in recent[:10]:
             total_score += sentiment_scores.get(interaction.sentiment, 0)
             total_score += type_scores.get(interaction.type, 5)
         
-        # Normalize to 0-100
         return max(0.0, min(100.0, total_score))
 EOF
