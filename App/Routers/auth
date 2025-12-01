@@ -1,4 +1,4 @@
-cat > App/Routers/Auth.py << 'EOF'
+cat > App/Routers/auth.py << 'EOF'
 from fastapi import APIRouter, HTTPException, Query
 from typing import Optional
 import secrets
