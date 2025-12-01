@@ -1,39 +1,46 @@
 import vertexai
 from vertexai.generative_models import GenerativeModel
 from ..Config import settings
+import json
+
 
 class GeminiAgent:
-    """Simple Gemini agent for networking advice"""
+    """Unified Gemini agent for networking, job tracking, and message generation"""
     
     def __init__(self):
-        vertexai.init(project=settings.google_project_id, location=settings.gcp_region)
+        vertexai.init(
+            project=settings.google_project_id, 
+            location=settings.gcp_region
+        )
         self.model = GenerativeModel(settings.gemini_model)
-    
+
+    # ----------------------------------------------------------------------
+    # 1. NETWORKING MESSAGE GENERATION (your original method)
+    # ----------------------------------------------------------------------
     def generate_message(self, contact_name: str, company: str, context: str = "") -> str:
-        """Generate a networking message"""
-        
         prompt = f"""
         Write a friendly LinkedIn message to {contact_name} at {company}.
         Context: {context}
         
-        Make it:
+        Requirements:
         - Under 150 words
-        - Warm and personal
-        - Include a clear call-to-action (coffee chat or quick call)
+        - Warm, personal, and helpful
+        - Include a clear call-to-action (coffee chat or short call)
         
-        Just return the message text, nothing else.
+        Return ONLY the message text.
         """
         
         response = self.model.generate_content(prompt)
-        return response.text
-    
+        return response.text.strip()
+
+    # ----------------------------------------------------------------------
+    # 2. NETWORK ANALYSIS (your original method)
+    # ----------------------------------------------------------------------
     def analyze_network(self, total_contacts: int, active_count: int) -> str:
-        """Analyze network health"""
-        
         prompt = f"""
         Analyze this professional network:
         - Total contacts: {total_contacts}
-        - Active (contacted in last 90 days): {active_count}
+        - Active in last 90 days: {active_count}
         
         Provide:
         1. Network health score (0-100)
@@ -41,6 +48,84 @@ class GeminiAgent:
         
         Keep it brief and actionable.
         """
-        
+
         response = self.model.generate_content(prompt)
-        return response.text
+        return response.text.strip()
+
+    # ----------------------------------------------------------------------
+    # 3. NEW — EXTRACT JOB APPLICATION FIELDS FROM TEXT
+    # ----------------------------------------------------------------------
+    def extract_application_fields(self, text: str) -> dict:
+        prompt = f"""
+        You are an AI assistant helping a job seeker track roles.
+
+        From the text below, extract the following fields as JSON ONLY:
+        {{
+            "company": "",
+            "job_title": "",
+            "job_link": "",
+            "jd_keywords": ""
+        }}
+
+        If a field is missing, return an empty string.
+
+        Text:
+        {text}
+        """
+
+        response = self.model.generate_content(prompt)
+        content = response.text.strip()
+
+        # unwrap code fences if present
+        if "```" in content:
+            parts = content.split("```")
+            for p in parts:
+                if "{" in p and "}" in p:
+                    content = p
+
+        try:
+            data = json.loads(content)
+        except Exception:
+            raise ValueError(f"Could not parse JSON from: {content}")
+
+        return {
+            "company": data.get("company", ""),
+            "job_title": data.get("job_title", ""),
+            "job_link": data.get("job_link", ""),
+            "jd_keywords": data.get("jd_keywords", ""),
+        }
+
+    # ----------------------------------------------------------------------
+    # 4. NEW — DRAFT JOB-SEARCH LINKEDIN MESSAGE
+    # ----------------------------------------------------------------------
+    def draft_job_message(
+        self,
+        your_background: str,
+        company: str,
+        job_title: str,
+        hiring_manager_name: str = "",
+        jd_keywords: str = "",
+    ) -> str:
+
+        prompt = f"""
+        Write a concise, friendly LinkedIn message to a hiring manager.
+
+        Background:
+        {your_background}
+
+        Role:
+        - Company: {company}
+        - Job title: {job_title}
+        - Keywords: {jd_keywords}
+        - Hiring manager: {hiring_manager_name}
+
+        Requirements:
+        - Under 150 words
+        - Warm but professional
+        - Mention alignment with the role
+        - Suggest a short call or thoughtful question
+        - Return ONLY the message text
+        """
+
+        response = self.model.generate_content(prompt)
+        return response.text.strip()
