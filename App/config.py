@@ -1,4 +1,4 @@
-cat > App/Config.py << 'EOF'
+cat > App/config.py << 'EOF'
 import os
 
 class Settings:
