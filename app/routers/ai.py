@@ -1,4 +1,4 @@
-cat > App/Routers/AI.py << 'EOF'
+cat > App/Routers/ai.py << 'EOF'
 from fastapi import APIRouter, HTTPException
 from ..agents.gemini_agent import GeminiAgent
 from ..Config import settings
