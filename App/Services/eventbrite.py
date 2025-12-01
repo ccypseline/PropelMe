@@ -1,4 +1,4 @@
-cat > App/services/eventbrite.py << 'EOF'
+cat > app/services/eventbrite.py << 'EOF'
 from typing import List, Dict, Optional
 import httpx
 from datetime import datetime
