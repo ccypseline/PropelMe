@@ -1,4 +1,4 @@
-cat > App/services/prioritization.py << 'EOF'
+cat > app/services/prioritization.py << 'EOF'
 from typing import List, Dict
 from datetime import datetime, timedelta
 from ..Schemas import Contact, Interaction, RelationshipType
