@@ -1,11 +1,15 @@
-# in App/Db.py
-from typing import AsyncGenerator
+# App/Db.py
+from typing import AsyncGenerator, Optional, List, Any, Dict
 import asyncpg
-from .config import get_settings
+from .config import get_settings  # make sure file is app/config.py (lowercase)
 
 settings = get_settings()
 
+
 async def get_db() -> AsyncGenerator[asyncpg.Connection, None]:
+    """
+    FastAPI dependency: yields an asyncpg connection and closes it afterwards.
+    """
     if not settings.db_connection_url:
         raise RuntimeError("DB_CONNECTION_URL is not set")
     conn = await asyncpg.connect(settings.db_connection_url)
@@ -15,48 +19,78 @@ async def get_db() -> AsyncGenerator[asyncpg.Connection, None]:
         await conn.close()
 
 
-async def insert_job_application(conn, data: dict) -> int:
+# -------- Job applications helpers --------
+
+async def insert_job_application(
+    conn: asyncpg.Connection,
+    data: Dict[str, Any],
+) -> Dict[str, Any]:
+    """
+    Insert a job application row and return the inserted record as dict.
+    Expects keys: company, role_title, link, status, contact_name,
+                  contact_linkedin_url, notes
+    """
     row = await conn.fetchrow(
         """
         INSERT INTO job_applications (
-            date_applied, company, job_title, job_link,
-            contact_name, contact_email, hiring_manager_profile,
-            jd_keywords, status, message_to_hm, notes
-        ) VALUES (
-            $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11
+            company,
+            role_title,
+            link,
+            status,
+            contact_name,
+            contact_linkedin_url,
+            notes
         )
-        RETURNING id
+        VALUES ($1,$2,$3,$4,$5,$6,$7)
+        RETURNING id,
+                  company,
+                  role_title,
+                  link,
+                  status,
+                  contact_name,
+                  contact_linkedin_url,
+                  notes;
         """,
-        data["date_applied"],
         data["company"],
-        data["job_title"],
-        data.get("job_link", ""),
-        data.get("contact_name", ""),
-        data.get("contact_email", ""),
-        data.get("hiring_manager_profile", ""),
-        data.get("jd_keywords", ""),
+        data["role_title"],
+        data.get("link", ""),
         data.get("status", "Planned"),
-        data.get("message_to_hm", ""),
+        data.get("contact_name", ""),
+        data.get("contact_linkedin_url", ""),
         data.get("notes", ""),
     )
-    return row["id"]
+    return dict(row)
 
 
-async def list_job_applications(conn, status: str | None, company: str | None):
-    query = "SELECT * FROM job_applications WHERE 1=1"
-    params = []
-    if status:
-        params.append(f"%{status}%")
-        query += f" AND status ILIKE ${len(params)}"
-    if company:
-        params.append(f"%{company}%")
-        query += f" AND company ILIKE ${len(params)}"
-    rows = await conn.fetch(query, *params)
-    return rows
+async def list_job_applications(
+    conn: asyncpg.Connection,
+) -> list[Dict[str, Any]]:
+    rows = await conn.fetch(
+        """
+        SELECT id,
+               company,
+               role_title,
+               link,
+               status,
+               contact_name,
+               contact_linkedin_url,
+               notes
+        FROM job_applications
+        ORDER BY id DESC;
+        """
+    )
+    return [dict(r) for r in rows]
 
 
-async def update_job_status(conn, job_id: int, status: str, notes_append: str | None):
-    # append note
+async def update_job_status(
+    conn: asyncpg.Connection,
+    job_id: int,
+    status: str,
+    notes_append: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Update status (and optionally append to notes), then return updated row.
+    """
     await conn.execute(
         """
         UPDATE job_applications
@@ -67,5 +101,24 @@ async def update_job_status(conn, job_id: int, status: str, notes_append: str | 
                     END
         WHERE id = $1
         """,
-        job_id, status, notes_append,
+        job_id,
+        status,
+        notes_append,
     )
+
+    row = await conn.fetchrow(
+        """
+        SELECT id,
+               company,
+               role_title,
+               link,
+               status,
+               contact_name,
+               contact_linkedin_url,
+               notes
+        FROM job_applications
+        WHERE id = $1
+        """,
+        job_id,
+    )
+    return dict(row) if row else {}
