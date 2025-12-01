@@ -60,14 +60,18 @@ class Contact(ContactBase):
     class Config:
         from_attributes = True  # Updated from orm_mode for Pydantic v2
 
-class JobApplicationBase(BaseModel):
+class JobApplicationCreate(BaseModel):
+    date_applied: date
     company: str
-    role_title: str
-    link: Optional[str] = None
-    status: str
-    contact_name: Optional[str] = None
-    contact_linkedin_url: Optional[str] = None
-    notes: Optional[str] = None
+    job_title: str
+    job_link: Optional[str] = ""
+    contact_name: Optional[str] = ""
+    contact_email: Optional[str] = ""
+    hiring_manager_profile: Optional[str] = ""
+    jd_keywords: Optional[str] = ""
+    status: str = "Planned"
+    message_to_hm: Optional[str] = ""
+    notes: Optional[str] = ""
 
 class JobApplication(JobApplicationBase):
     id: int
