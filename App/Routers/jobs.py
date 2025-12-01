@@ -4,19 +4,19 @@ from fastapi import APIRouter, Depends, HTTPException
 from typing import List
 import asyncpg
 
-from App.Db import (
+from app.db import (
     get_db,
     list_job_applications,
     insert_job_application,
     update_job_status,
 )
-from App.Schemas import JobApplication, JobApplicationBase
+from app.schemas import JobApplication, JobApplicationBase
 
 # ⚠️ Adjust this import to match your actual file layout.
 # For example, if your agent lives at:
 #   app/agents/gemini_agent.py   with class GeminiAgent
 # then this import is correct:
-from App.Agents.gemini_agent import GeminiAgent
+from app.agents.gemini_agent import GeminiAgent
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
