@@ -1,4 +1,4 @@
-cat > App/Schemas.py << 'EOF'
+cat > app.schemas.py << 'EOF'
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, Literal, List
 from datetime import datetime
