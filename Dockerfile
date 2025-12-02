@@ -1,19 +1,21 @@
+# Use an official lightweight Python image
 FROM python:3.11-slim
 
+# Set workdir
 WORKDIR /app
 
-# Copy requirements first for better caching
-COPY requirements.txt .
+# Install system deps (optional, adjust as needed)
+RUN apt-get update && apt-get install -y build-essential && rm -rf /var/lib/apt/lists/*
 
-# Install dependencies
+# Copy requirement file & install deps
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
+# Copy the rest of the code
 COPY . .
 
-# Set environment variables
-ENV PYTHONPATH=/app
+# Expose the port Cloud Run will use
 ENV PORT=8080
 
-# Run the application
-CMD exec uvicorn main:app --host 0.0.0.0 --port ${PORT}
+# Start FastAPI with uvicorn (adjust module/path as needed)
+CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8080"]
